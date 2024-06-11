@@ -40,6 +40,10 @@ csvwrite([root, ses_name, '_traces.csv'], [TTLstartsTimes, results.C_raw'])
 
 A = reshape(full(results.A'), nNeurons, imsize(1), imsize(2));
 save([root, ses_name, '_spatials.mat'],'A')
+
+
+
+
 %% Draw traces and cell footprints
 figure, hold on
 for i = 1:nNeurons
@@ -61,3 +65,33 @@ for i = 1:nNeurons
     %scatter(Neurons.Rises(i).Ends, ones(numel(Neurons.Rises(i).Ends))*(i-1) - 0.2, 20, sd_colornum_metro(i-1), 'filled')
 end
 % savefig('/export/home1/RawCalciumData/awake_traces_with_events.fig')
+
+%% The same for several files stored in different folders
+root = '/export/home1/RawCalciumData/';
+ses_name = 'sleeppost';
+files = dir([root, ses_name, '/CNMF*/Results.mat']);
+ePhysFile = '/export/home1/Sequences/3_SleepPOST/continuous.dat';
+
+TTLData= single(LoadBinary(ePhysFile,'channels', 18, 'nChannels', 24));
+
+
+for f = 1:numel(files)
+    load([files(f).folder, filesep, files(f).name])
+    TTLstartsTimes = GetTTLtimes(TTLData,results); 
+
+    nNeurons = size(results.F0,2);
+    imsize = size(results.Cn);
+    par_name = strsplit(files(f).folder, 'results');
+
+    csvwrite([root, ses_name, par_name{2}, '_traces.csv'], [TTLstartsTimes, results.C_raw'])
+    A = reshape(full(results.A'), nNeurons, imsize(1), imsize(2));
+    save([root, ses_name, par_name{2}, '_spatials.mat'],'A')
+
+    figure, title([root, ses_name, par_name{2}])
+    subplot(1,2,1), imagesc(squeeze(sum(A, 1)))
+    subplot(1,2,2), hold on
+    for i = 1:nNeurons
+        plot(TTLstartsTimes, results.C_raw(i,:)/max(results.C_raw(i,:)) + i-1, 'Color', sd_colornum_metro(i-1), 'LineWidth', 2);
+
+    end
+end
