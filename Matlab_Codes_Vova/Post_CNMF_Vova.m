@@ -69,8 +69,9 @@ end
 %% The same for several files stored in different folders
 root = '/export/home1/RawCalciumData/';
 ses_name = 'sleeppost';
-files = dir([root, ses_name, '/CNMF*/Results.mat']);
+files = dir([root, ses_name, '/CNMF*_070_*/Results.mat']);
 ePhysFile = '/export/home1/Sequences/3_SleepPOST/continuous.dat';
+sigma = 0;
 
 TTLData= single(LoadBinary(ePhysFile,'channels', 18, 'nChannels', 24));
 
@@ -85,6 +86,11 @@ for f = 1:numel(files)
 
     csvwrite([root, ses_name, par_name{2}, '_traces.csv'], [TTLstartsTimes, results.C_raw'])
     A = reshape(full(results.A'), nNeurons, imsize(1), imsize(2));
+    %Do some smoothing
+    if sigma
+        A = imgaussfilt(A,sigma);
+    end
+
     save([root, ses_name, par_name{2}, '_spatials.mat'],'A')
 
     figure, title([root, ses_name, par_name{2}])

@@ -1,3 +1,4 @@
+
 function varargout = CellReg(varargin)
 % This GUI is an implementation of a probabilistic approach for the
 % identification of the same neurons (cell registration) across multiple sessions

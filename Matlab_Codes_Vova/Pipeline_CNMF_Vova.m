@@ -1,7 +1,7 @@
- %% clear the workspace , turn off warnings
+%% clear the workspace , turn off warnings
 clear; clc; close all;
 warning('off', 'all'); 
-
+addpath(genpath(pwd))
 %% Parameters
 
 % ------------------------------------- Files ---------------------------------------------------
@@ -39,7 +39,7 @@ actions = struct;
 actions.CreateMask = true; % to extract mask corresponding to the bundle (from the image data), and then use it in CNMFE (apply it on Cn and PNR matrix to avoid problems close to the bundle limit). Mandatory for fiberscope data. 
 actions.PickNeuronsFromResidual = false; 
 actions.LoopsToRun = 1 ;  % number of optimization loops to run after initialisation. Can be 0. 
-with_manual_intervention = false;
+with_manual_intervention = true;
 
 
 % COMPUTATION   
@@ -55,7 +55,9 @@ gSig_fact = 0.28;
 gSig = gSig_fact * gSiz; % pixel, gaussian width of a gaussian kernel for filtering the data. 0 means no filtering
 ssub = 1;           % spatial downsampling factor
 min_pixel_fact = 2.25;
-min_pixel = min_pixel_fact* gSig^2;      % minimum number of nonzero pixels for each neuron
+min_pixel = min_pixel_fact*gSig^2;      % minimum number of nonzero pixels for each neuron
+min_bwdist_fact = 1.1;
+min_bwdist = min_bwdist_fact*gSig;      % minimum half-"thickness" for each neuron; given euclidean metric, mind the discrete nature of this parameter
 with_dendrites = false;   % with dendrites or not
 updateA_bSiz = 5;
 spatial_constraints = struct('connected', true, 'circular', true);  % you can include following constraints: 'circular'
@@ -115,8 +117,8 @@ merge_thr_spatial = [0.6, 0.5, -inf];  % merge components with highly correlated
 %  INITIALIZATION 
 K = 300;             % maximum number of neurons per patch. when K=[], take as many as possible.
 %K = 10; 
-min_corr = 0.7;    % minimum local correlation for a seeding pixel
-min_pnr = 55;       % minimum peak-to-noise ratio for a seeding pixel
+min_corr = 0.7;     % minimum local correlation for a seeding pixel
+min_pnr = 30;       % minimum peak-to-noise ratio for a seeding pixel
 bd = 0;             % number of rows/columns to be ignored in the boundary (mainly for motion corrected data)
 frame_range = [];   % when [], uses all frames
 save_initialization = false;    % save the initialization procedure as a video.
@@ -127,7 +129,7 @@ center_psf = true;  % set the value as true when the background fluctuation is l
 
 %  RESIDUAL  
 min_corr_res = 0.5;
-min_pnr_res = 5;
+min_pnr_res = 10;
 seed_method_res = 'auto';  % method for initializing neurons from the residual
 update_sn = true;
 
@@ -447,6 +449,9 @@ remaining_loops = remaining_loops -1;
 
     % delete bad neurons
     neuron.remove_false_positives();
+
+    % filter by bwdist aka "thickness"
+    filter_neurons_by_bwdist(neuron, min_bwdist)
 
     % merge neurons based on temporal correlation + distances 
     neuron.merge_neurons_dist_corr(show_merge);
