@@ -1,16 +1,26 @@
 %% Path of the Exp. Folder + Channels for TTL and HPC ePhy (Exp. Dep.) + Nb of sub Exps ([SleepPRE, Awake, SleepPOST])
-root = '/export/home1/Sequences/NewCNMF/';
-load([root, ])
+root = '/media/sotskov/Vladimir/Analysis/Souris154148/22-07-07/';
+ephys_path = '154148-sleeppost_2022-07-07_13-42-44/Record Node 104/experiment1/recording1/continuous/Rhythm_FPGA-100.0/';
+timing_path = '134246_sCMOS_154148-sleeppost/sCMOS_AbsoluteTimingsSec.csv';
+ePhysChan=6; TTLChan=18;
 
-% load([root, 'SleepPOST_Results_140.mat'])
-% traces = csvread([root, 'sleeppost_070_30_bwf_140_traces.csv']);
-% TTLstartsTimes = traces(:,1);
-% load ([root, 'SleepPOST_all_data_new_CNMF.mat'], 'ripples') % Get ripples from .mat file
-%% OR Load ePhysData (HPC channel and TTL)
-[file,path] = uigetfile([MainPath '/*.dat'],'Select ePhys data to load'); ePhysFile = fullfile(path,file);  % Select the continuous.dat of the experiment    
-ePhysData=loadChanLFP(ePhysChan,[ePhysFile(1:end-3) 'lfp'],1);                                              % Load the LFP (create it from the .dat if it doesn't exist)
-TTLData=loadChanDat(TTLChan,ePhysFile); TTLData=single(TTLData);                                            % Load the TTL data
-TTLstartsTimes=GetTTLtimes(TTLData,ExtractedResults);                                                       % Get the TTL times (which are also the time of Calcium data points)
+%% Load results and take only the last (i.e., sleeppost) session
+load([root, 'AllExp/4-Results/Results.mat'])
+timings = csvread([root, timing_path]);
+n_conc = size(results.C, 2);
+slen = length(timings) - 4; %since n_Downsample = 1, see ExtractExpData
+toExtract = n_conc-slen+1:n_conc;
+
+results.C_raw = results.C_raw(:,toExtract);
+results.C = results.C(:,toExtract); 
+results.S = results.S(:,toExtract);
+results.AvgRoi = results.AvgRoi(:,toExtract); 
+results.AvgRoiNoBaseline = results.AvgRoiNoBaseline(:,toExtract);
+
+%% Load ePhysData (HPC channel and TTL)
+ePhysData=loadChanLFP(ePhysChan,[root, ephys_path, 'continuous.lfp'],1);                                              % Load the LFP (create it from the .dat if it doesn't exist)
+TTLData=loadChanDat(TTLChan,[root, ephys_path, 'continuous.dat']); TTLData=single(TTLData);                  % Load the TTL data
+TTLstartsTimes=GetTTLtimes(TTLData,results);                                                       % Get the TTL times (which are also the time of Calcium data points)
 
 %% Find ripples
 rangeSpect = [0 500];                                                                                       % Range of the Spectrogram in Hz
@@ -18,10 +28,10 @@ windowSpect = 0.05;                                                             
 [spectrogram,t,f] = MTSpectrogram(ePhysData,'range',[0 500],'window',0.05);                                 % Compute the spectrogram of the LFP
 bands = SpectrogramBands(spectrogram,f);                                                                    % Define physiological rhythms bands (default for ripples = [100 250] Hz)
 ripplesPower=[t bands.ripples];                                                                             % Get the power in the ripples band in each time window
-
-% PETD of ripple-band power around SCEs
-durations=[-1 1];                                                                                           % Window around events times to compute the PETD
-GetRipScePETD(ripplesPower,putSCEtimes,durations)                                                           % Get the Peri-Events(SCEs)-Time Distribution of the ripples power
+% 
+% % PETD of ripple-band power around SCEs
+% durations=[-1 1];                                                                                           % Window around events times to compute the PETD
+% GetRipScePETD(ripplesPower,putSCEtimes,durations)                                                           % Get the Peri-Events(SCEs)-Time Distribution of the ripples power
 
 % Find Ripples
 RipBand=[100 250];                                                                                          % Define Ripples Band
@@ -29,6 +39,10 @@ ePhysDataFilt=FilterLFP(ePhysData,'passband',RipBand);                          
 
 RipThr = [2 3]; % [2 3]; % [1 2]; % Default values in FindRipples function  [2 5]                                                                                          % Set Threshold for finding the ripples 
 [ripples,~,~] = FindRipples(ePhysDataFilt,'thresholds',RipThr);                                             % Find Ripples
+%% Save results in readable form
+csvwrite(['/export/home1/Sequences/220707/', 'SL_traces.csv'], [TTLstartsTimes, results.C_raw'])
+
+
 %% main loop
 
 files = dir([root, 'SL_events_sigma*.mat']);
